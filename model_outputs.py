@@ -12,7 +12,7 @@ import seaborn as sns
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit, cross_validate
 from sklearn.pipeline import Pipeline
@@ -48,9 +48,13 @@ HDD_BASE_TEMPS = list(np.arange(10.0, 20.1, 1.0))
 
 RF_PARAM_GRID = {
     "regressor__n_estimators": [250],
-    "regressor__max_depth": [2, 3, None],
-    "regressor__min_samples_leaf": [1, 3],
+    "regressor__max_depth": [2, 3, 4],
+    "regressor__min_samples_leaf": [3, 5, 8],
     "regressor__max_features": [1.0],
+}
+
+POLY_RIDGE_PARAM_GRID = {
+    "regressor__alpha": [0.1, 1.0, 10.0, 100.0, 1000.0],
 }
 
 HDD_BASE_TEMP_GRID = {
@@ -113,12 +117,12 @@ def build_raw_pipeline(regressor):
     ])
 
 
-def build_pca_poly_pipeline(degree, n_components=N_PCA_COMPONENTS):
+def build_pca_poly_pipeline(degree, n_components=N_PCA_COMPONENTS, alpha=1.0):
     return Pipeline([
         ("scaler", StandardScaler()),
         ("pca", PCA(n_components=n_components)),
         ("poly", PolynomialFeatures(degree=degree, include_bias=POLY_INCLUDE_BIAS)),
-        ("regressor", LinearRegression()),
+        ("regressor", Ridge(alpha=alpha)),
     ])
 
 
@@ -226,7 +230,7 @@ def save_functional_form_diagnostics(output_dir, ols_lin, ols_poly):
 
     reset = linear_reset(ols_lin, power=3, use_f=True)
     fstat, fpvalue, df_diff = ols_poly.compare_f_test(ols_lin)
-    dw = durbin_watson(ols_lin.resid)
+    dw = float(durbin_watson(ols_lin.resid))
     residuals = np.asarray(ols_lin.resid)
     acf_lag1 = float(np.corrcoef(residuals[:-1], residuals[1:])[0, 1]) if len(residuals) > 1 else np.nan
 
@@ -483,12 +487,6 @@ def save_model_results(
     plt.close()
 
 
-def durbin_watson(residuals):
-    residuals = np.asarray(residuals)
-    diff = np.diff(residuals)
-    return float(np.sum(diff ** 2) / np.sum(residuals ** 2))
-
-
 def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, temperature_test):
     """Extended residual diagnostics: vs temperature, autocorrelation, Durbin-Watson."""
     output_dir = Path(output_dir)
@@ -498,7 +496,7 @@ def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, tempe
     y_test_pred = np.asarray(y_test_pred)
     temperature_test = np.asarray(temperature_test)
     residuals = y_test - y_test_pred
-    dw = durbin_watson(residuals)
+    dw = float(durbin_watson(residuals))
 
     pd.DataFrame({"statistic": ["Durbin-Watson"], "value": [dw]}).to_csv(
         output_dir / "durbin_watson.csv", index=False

@@ -1,0 +1,21 @@
+venv
+__pycache__
+.DS_Store
+.env
+.venv
+.vscode
+.idea
+.cursor
+task_1.png
+task_2.png
+task.pdf
+outputs
+.mplconfig
+task.md
+reports/
+outputs/
+Final Report.docx (1).pdf
+solar_heating_analysis_reproducible.py
+Solar_Thermal_Heating_Final_Report.pdf
+task_desc.md
+

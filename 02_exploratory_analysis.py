@@ -1,6 +1,9 @@
 """
 Step 2 — Exploratory data analysis.
 
+Model-motivating EDA (correlations, VIF, temperature plateau, Figure 1) uses
+the development sample only. Full-period time-series plots are descriptive.
+
 Describes the dataset and motivates PCA:
   - Gas drivers: temperature plateau, seasonality, correlations
   - Multicollinearity (VIF) among predictors → PCA in step 03
@@ -216,22 +219,30 @@ def main():
 
     print(f"Loading: {script_dir / INPUT_FILE}")
     df = pd.read_csv(script_dir / INPUT_FILE).sort_values(DATE_COLUMN).reset_index(drop=True)
-    print(f"Dataset: {len(df)} weeks  ({df[DATE_COLUMN].iloc[0]} to {df[DATE_COLUMN].iloc[-1]})")
+    split_idx = chronological_split(df)
+    eda_df = df.iloc[:split_idx].copy()
 
-    vif_df = compute_vif(df[PREDICTOR_COLUMNS])
-    plot_gas_vs_temperature(df, output_dir)
+    print(f"Dataset: {len(df)} weeks  ({df[DATE_COLUMN].iloc[0]} to {df[DATE_COLUMN].iloc[-1]})")
+    print(f"EDA statistics computed on development set only: {len(eda_df)} weeks")
+
+    vif_df = compute_vif(eda_df[PREDICTOR_COLUMNS])
+
+    # Model-motivating EDA: development set only
+    plot_gas_vs_temperature(eda_df, output_dir)
+    plot_correlation_heatmap(eda_df, output_dir)
+    plot_seasonal_gas(eda_df, output_dir)
+    save_eda_summary(eda_df, vif_df, output_dir)
+
+    # Descriptive timeline plots may still show the full period and holdout boundary
     plot_seasonal_drivers_timeseries(df, output_dir)
     plot_weekly_gas_timeseries(df, output_dir)
-    plot_correlation_heatmap(df, output_dir)
-    plot_seasonal_gas(df, output_dir)
-    save_eda_summary(df, vif_df, output_dir)
 
     print("\n--- VIF (multicollinearity) ---")
     for _, row in vif_df.iterrows():
         print(f"  {row['variable'].split('[')[0].strip():22} VIF = {row['VIF']:.1f}")
 
     print("\n--- Key correlations with gas ---")
-    corr = df[ALL_COLUMNS].corr()[TARGET_COLUMN].drop(TARGET_COLUMN)
+    corr = eda_df[ALL_COLUMNS].corr()[TARGET_COLUMN].drop(TARGET_COLUMN)
     for col, r in corr.items():
         print(f"  {col.split('[')[0].strip():22} r = {r:+.3f}")
 

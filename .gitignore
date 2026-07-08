@@ -1,21 +1,35 @@
-venv
-__pycache__
-.DS_Store
+# Python / environment
+venv/
+.venv/
+__pycache__/
+*.py[cod]
 .env
-.venv
-.vscode
-.idea
-.cursor
+.env.*
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+.cursor/
+.mplconfig/
+
+# Generated pipeline outputs
+outputs/
+outputs_lean_old/
+old_pipeline_outputs/
+
+# Reports and drafts (not part of reproducible pipeline)
+reports/
+final_report.docx
+shortened_final_report.md
+*.pdf
+final_report.md
+revision_summary.md
+
+# Legacy / reference files
+solar_heating_analysis_reproducible.py
 task_1.png
 task_2.png
 task.pdf
-outputs
-.mplconfig
 task.md
-reports/
-outputs/
-Final Report.docx (1).pdf
-solar_heating_analysis_reproducible.py
-Solar_Thermal_Heating_Final_Report.pdf
 task_desc.md
-

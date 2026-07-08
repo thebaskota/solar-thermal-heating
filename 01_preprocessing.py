@@ -60,9 +60,16 @@ def main():
     df = pd.read_csv(data_path, sep="\t")
 
     report_lines = validate_dataframe(df)
+    df[DATE_COLUMN] = pd.to_datetime(df[DATE_COLUMN])
     df = df.sort_values(DATE_COLUMN).reset_index(drop=True)
 
-    report_lines.append(f"Date range: {df[DATE_COLUMN].iloc[0]} to {df[DATE_COLUMN].iloc[-1]}")
+    diffs = df[DATE_COLUMN].diff().dropna()
+    gap_count = int((diffs != pd.Timedelta(days=7)).sum())
+    report_lines.append(f"Non-weekly gaps: {gap_count}")
+    if gap_count > 0:
+        raise ValueError("Date spacing is not exactly weekly.")
+
+    report_lines.append(f"Date range: {df[DATE_COLUMN].iloc[0].date()} to {df[DATE_COLUMN].iloc[-1].date()}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_file, index=False)
@@ -76,4 +83,4 @@ def main():
 
 
 if __name__ == "__main__":
-  main()
+    main()

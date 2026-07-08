@@ -97,7 +97,7 @@ def main():
     comparison_df["R2_gap"] = comparison_df["Train_R²"] - comparison_df["Test_R²"]
 
     print("--- Model comparison (held-out test set) ---")
-    display_cols = ["Model", "Train_R²", "Test_R²", "Test_RMSE", "Test_MAE", "Test_BIC", "CV_R²_Mean", "CV_R²_Std"]
+    display_cols = ["Model", "Train_R²", "Test_R²", "Test_RMSE", "Test_MAE", "Dev_BIC", "CV_R²_Mean", "CV_R²_Std"]
     print(comparison_df[display_cols].round(4).to_string(index=False))
 
     comparison_df.to_csv(output_dir / "model_comparison.csv", index=False)
@@ -109,7 +109,8 @@ def main():
 
     best_row = comparison_df.sort_values(["Test_R²", "Test_RMSE"], ascending=[False, True]).iloc[0]
     print(f"\nHighest test R²: {best_row['Model']} (R²={best_row['Test_R²']:.4f})")
-    print("Note: BIC is not directly comparable for Random Forest.")
+    print("Note: Dev_BIC is computed on the development sample only (classical in-sample BIC).")
+    print("Note: Dev_BIC is not defined for Random Forest.")
     print(f"\nSaved outputs to: {output_dir}")
     print("Done.")
 

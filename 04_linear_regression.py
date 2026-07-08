@@ -25,11 +25,9 @@ from model_outputs import (
     build_pca_pipeline,
     calculate_metrics,
     chronological_split,
-    fit_pca_ols_diagnostics,
     init_plot_style,
     print_model_performance,
     save_cv_summary,
-    save_functional_form_diagnostics,
     save_model_coefficients,
     save_model_results,
     save_residual_diagnostics,
@@ -37,6 +35,8 @@ from model_outputs import (
 )
 
 OUTPUT_DIR = Path("outputs") / "04_linear_regression"
+
+
 def run_model(
     script_dir,
     name,
@@ -66,7 +66,7 @@ def run_model(
     y_all_pred = model.predict(X_all)
 
     train_metrics = calculate_metrics(y_train, y_train_pred, n_params)
-    test_metrics = calculate_metrics(y_test, y_test_pred, n_params)
+    test_metrics = calculate_metrics(y_test, y_test_pred)
 
     print(f"\n--- {name} ---")
     print_model_performance(train_metrics, test_metrics)
@@ -114,8 +114,7 @@ def run_model(
         "CV_RMSE_Std": cv_summary["cv_rmse_std"],
     }
     if "BIC" in train_metrics:
-        row["Train_BIC"] = train_metrics["BIC"]
-        row["Test_BIC"] = test_metrics["BIC"]
+        row["Dev_BIC"] = train_metrics["BIC"]
     return row
 
 
@@ -173,16 +172,6 @@ def main():
         ["intercept", *pc_names],
         [pca_reg.intercept_, *pca_reg.coef_],
     )
-
-    _, ols_lin, ols_poly = fit_pca_ols_diagnostics(
-        train_df[PREDICTOR_COLUMNS], y_train,
-    )
-    diag = save_functional_form_diagnostics(output_dir / "pca_linear", ols_lin, ols_poly)
-    reset_row = next(r for r in diag if r["test"] == "Ramsey RESET")
-    nested_row = next(r for r in diag if "Nested" in r["test"])
-    print("\n--- PCA linear functional-form tests (development set) ---")
-    print(f"  Ramsey RESET F = {reset_row['value']:.2f}, p = {reset_row['p_value']:.4g}")
-    print(f"  Nested F = {nested_row['value']:.2f}, p = {nested_row['p_value']:.4g}")
 
     comparison_df = pd.DataFrame(rows)
     comparison_df.to_csv(output_dir / "baseline_comparison.csv", index=False)

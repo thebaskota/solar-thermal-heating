@@ -60,7 +60,9 @@ def main():
     print(f"\nModel: {MODEL_NAME} (training-set CV tuning)")
     print(f"Predictors: {PREDICTOR_COLUMNS} → PCA (k={N_PCA_COMPONENTS})")
 
-    pipeline = build_pca_pipeline(RandomForestRegressor(random_state=RANDOM_STATE))
+    pipeline = build_pca_pipeline(
+        RandomForestRegressor(random_state=RANDOM_STATE, n_jobs=1),
+    )
     tscv = TimeSeriesSplit(n_splits=CV_FOLDS)
     search = GridSearchCV(
         pipeline,
@@ -68,6 +70,7 @@ def main():
         cv=tscv,
         scoring="neg_root_mean_squared_error",
         refit=True,
+        n_jobs=1,
     )
     search.fit(X_train, y_train)
 

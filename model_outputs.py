@@ -12,13 +12,11 @@ import seaborn as sns
 import statsmodels.api as sm
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit, cross_validate
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
-from statsmodels.stats.diagnostic import linear_reset
-from statsmodels.stats.stattools import durbin_watson
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -51,10 +49,6 @@ RF_PARAM_GRID = {
     "regressor__max_depth": [2, 3, 4],
     "regressor__min_samples_leaf": [3, 5, 8],
     "regressor__max_features": [1.0],
-}
-
-POLY_RIDGE_PARAM_GRID = {
-    "regressor__alpha": [0.1, 1.0, 10.0, 100.0, 1000.0],
 }
 
 HDD_BASE_TEMP_GRID = {
@@ -117,12 +111,12 @@ def build_raw_pipeline(regressor):
     ])
 
 
-def build_pca_poly_pipeline(degree, n_components=N_PCA_COMPONENTS, alpha=1.0):
+def build_pca_poly_pipeline(degree, n_components=N_PCA_COMPONENTS):
     return Pipeline([
         ("scaler", StandardScaler()),
         ("pca", PCA(n_components=n_components)),
         ("poly", PolynomialFeatures(degree=degree, include_bias=POLY_INCLUDE_BIAS)),
-        ("regressor", Ridge(alpha=alpha)),
+        ("regressor", LinearRegression()),
     ])
 
 
@@ -193,13 +187,11 @@ def build_hdd_pipeline(variant="hdd_solar"):
     if variant == "hdd_solar":
         return Pipeline([
             ("features", HDDPlusSolarOnlyTransformer()),
-            ("scaler", StandardScaler()),
             ("model", LinearRegression()),
         ])
     if variant == "hdd_solar_valve":
         return Pipeline([
             ("features", HDDPlusSolarValveTransformer()),
-            ("scaler", StandardScaler()),
             ("model", LinearRegression()),
         ])
     raise ValueError(f"Unknown HDD variant: {variant}")
@@ -213,53 +205,6 @@ def hdd_base_temp_grid(variant):
 
 def hdd_n_params(variant):
     return {"hdd_only": 2, "hdd_solar": 3, "hdd_solar_valve": 4}[variant]
-
-
-def fit_pca_ols_diagnostics(X_train, y_train, n_components=N_PCA_COMPONENTS):
-    scaler = StandardScaler().fit(X_train)
-    pcs_train = PCA(n_components=n_components).fit_transform(scaler.transform(X_train))
-    ols_lin = sm.OLS(y_train, sm.add_constant(pcs_train)).fit()
-    poly_train = PolynomialFeatures(degree=2, include_bias=False).fit_transform(pcs_train)
-    ols_poly = sm.OLS(y_train, sm.add_constant(poly_train)).fit()
-    return pcs_train, ols_lin, ols_poly
-
-
-def save_functional_form_diagnostics(output_dir, ols_lin, ols_poly):
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    reset = linear_reset(ols_lin, power=3, use_f=True)
-    fstat, fpvalue, df_diff = ols_poly.compare_f_test(ols_lin)
-    dw = float(durbin_watson(ols_lin.resid))
-    residuals = np.asarray(ols_lin.resid)
-    acf_lag1 = float(np.corrcoef(residuals[:-1], residuals[1:])[0, 1]) if len(residuals) > 1 else np.nan
-
-    rows = [
-        {"test": "Ramsey RESET", "statistic": "F", "value": float(reset.fvalue), "p_value": float(reset.pvalue)},
-        {"test": "Nested F (linear vs quadratic PCA)", "statistic": "F", "value": float(fstat), "p_value": float(fpvalue), "df_diff": float(df_diff)},
-        {"test": "Durbin-Watson", "statistic": "DW", "value": dw, "p_value": np.nan},
-        {"test": "Residual lag-1 ACF", "statistic": "ACF", "value": acf_lag1, "p_value": np.nan},
-    ]
-    pd.DataFrame(rows).to_csv(output_dir / "functional_form_diagnostics.csv", index=False)
-
-    max_lag = min(12, len(residuals) - 1)
-    if max_lag > 0:
-        lags = np.arange(1, max_lag + 1)
-        acfs = [float(np.corrcoef(residuals[:-lag], residuals[lag:])[0, 1]) for lag in lags]
-        conf = 1.96 / np.sqrt(len(residuals))
-        plt.figure(figsize=(8, 4))
-        plt.stem(lags, acfs, basefmt=" ")
-        plt.axhline(conf, linestyle="--", linewidth=1)
-        plt.axhline(-conf, linestyle="--", linewidth=1)
-        plt.axhline(0, color="black", linewidth=1)
-        plt.xlabel("Lag [weeks]")
-        plt.ylabel("Residual autocorrelation")
-        plt.title("Development residual autocorrelation — PCA + linear")
-        plt.tight_layout()
-        plt.savefig(output_dir / "residual_acf_development.png", dpi=150)
-        plt.close()
-
-    return rows
 
 
 def save_ols_inference_table(output_dir, X_train, y_train, term_labels):
@@ -362,8 +307,6 @@ def save_hyperparameters(output_dir, params_dict):
 
 def print_model_performance(train_metrics, test_metrics):
     metric_names = ["R²", "MSE", "RMSE", "MAE"]
-    if "BIC" in train_metrics:
-        metric_names.append("BIC")
     print(f"{'Metric':<10} {'Training':>12} {'Testing':>12}")
     print("-" * 36)
     for name in metric_names:
@@ -372,10 +315,10 @@ def print_model_performance(train_metrics, test_metrics):
         t, v = train_metrics[name], test_metrics[name]
         if name in ("R²",):
             print(f"{name:<10} {t:>12.4f} {v:>12.4f}")
-        elif name == "BIC":
-            print(f"{name:<10} {t:>12.1f} {v:>12.1f}")
         else:
             print(f"{name:<10} {t:>12.2f} {v:>12.2f}")
+    if "BIC" in train_metrics:
+        print(f"{'Dev BIC':<10} {train_metrics['BIC']:>12.1f}")
 
 
 def load_model_metrics(model_name, eval_path):
@@ -394,8 +337,7 @@ def load_model_metrics(model_name, eval_path):
         "Test_MAE": test["MAE"],
     }
     if "BIC" in train.index:
-        row["Train_BIC"] = train["BIC"]
-        row["Test_BIC"] = test["BIC"]
+        row["Dev_BIC"] = train["BIC"]
     return row
 
 
@@ -488,7 +430,7 @@ def save_model_results(
 
 
 def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, temperature_test):
-    """Extended residual diagnostics: vs temperature, autocorrelation, Durbin-Watson."""
+    """Holdout residual diagnostics vs outdoor temperature."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,11 +438,6 @@ def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, tempe
     y_test_pred = np.asarray(y_test_pred)
     temperature_test = np.asarray(temperature_test)
     residuals = y_test - y_test_pred
-    dw = float(durbin_watson(residuals))
-
-    pd.DataFrame({"statistic": ["Durbin-Watson"], "value": [dw]}).to_csv(
-        output_dir / "durbin_watson.csv", index=False
-    )
 
     bands = [
         ("cold", temperature_test < 5),
@@ -530,19 +467,6 @@ def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, tempe
     plt.tight_layout()
     plt.savefig(output_dir / "residual_vs_temperature.png", dpi=150)
     plt.close()
-
-    max_lag = min(20, len(residuals) - 1)
-    if max_lag > 0:
-        acf = [float(np.corrcoef(residuals[:-lag], residuals[lag:])[0, 1]) for lag in range(1, max_lag + 1)]
-        plt.figure(figsize=(8, 4))
-        plt.bar(range(1, max_lag + 1), acf, color="steelblue", edgecolor="black")
-        plt.axhline(0, color="gray", linewidth=0.8)
-        plt.xlabel("Lag (weeks)")
-        plt.ylabel("Autocorrelation")
-        plt.title(f"Residual Autocorrelation — {model_name} (Testing Set)")
-        plt.tight_layout()
-        plt.savefig(output_dir / "residual_autocorrelation.png", dpi=150)
-        plt.close()
 
 
 def init_plot_style():

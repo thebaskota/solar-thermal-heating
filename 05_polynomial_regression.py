@@ -1,22 +1,20 @@
 """
 Step 5 — Polynomial regression (degree 2) on PCA features.
 
-Scaler + PCA + quadratic features + Ridge are refit inside a sklearn Pipeline on
-raw predictors (train-only within each CV fold). Ridge alpha is tuned by
-time-series CV to stabilise early-fold estimates.
+Scaler + PCA + quadratic features + OLS are refit inside a sklearn Pipeline on
+raw predictors (train-only within each CV fold).
 Run after 04_linear_regression.py.
 """
 
 from pathlib import Path
 
 import pandas as pd
-from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
+from sklearn.model_selection import TimeSeriesSplit
 
 from model_outputs import (
     CV_FOLDS,
     DATE_COLUMN,
     N_PCA_COMPONENTS,
-    POLY_RIDGE_PARAM_GRID,
     PREDICTOR_COLUMNS,
     PREPROCESSED_FILE,
     TARGET_COLUMN,
@@ -59,40 +57,19 @@ def main():
     print(f"\nModel: {MODEL_NAME}")
     print(f"Predictors: {PREDICTOR_COLUMNS} → PCA (k={N_PCA_COMPONENTS}) → polynomial degree {POLY_DEGREE}")
 
-    pipeline = build_pca_poly_pipeline(POLY_DEGREE)
-    tscv = TimeSeriesSplit(n_splits=CV_FOLDS)
-    search = GridSearchCV(
-        pipeline,
-        POLY_RIDGE_PARAM_GRID,
-        cv=tscv,
-        scoring="neg_root_mean_squared_error",
-        refit=True,
-    )
-    search.fit(X_train, y_train)
+    model = build_pca_poly_pipeline(POLY_DEGREE)
+    model.fit(X_train, y_train)
 
-    best_alpha = float(search.best_params_["regressor__alpha"])
-    print("\n--- Ridge alpha search (training CV) ---")
-    print(f"Selected alpha: {best_alpha:g}  (CV RMSE = {-search.best_score_:.2f} kWh/day)")
-
-    pd.DataFrame(search.cv_results_)[[
-        "param_regressor__alpha",
-        "mean_test_score",
-        "std_test_score",
-        "rank_test_score",
-    ]].sort_values("rank_test_score").to_csv(
-        output_dir / "poly_ridge_alpha_search.csv", index=False,
-    )
-
-    model = search.best_estimator_
     y_train_pred = model.predict(X_train)
     y_test_pred = model.predict(X_test)
     y_all_pred = model.predict(X)
     n_params = poly_n_params(model)
 
     train_metrics = calculate_metrics(y_train, y_train_pred, n_params)
-    test_metrics = calculate_metrics(y_test, y_test_pred, n_params)
+    test_metrics = calculate_metrics(y_test, y_test_pred)
     print_model_performance(train_metrics, test_metrics)
 
+    tscv = TimeSeriesSplit(n_splits=CV_FOLDS)
     cv_summary = time_series_cv_summary(model, X_train, y_train, tscv)
     save_cv_summary(output_dir, cv_summary)
     print(f"  CV R² = {cv_summary['cv_r2_mean']:.4f} ± {cv_summary['cv_r2_std']:.4f}")
@@ -100,7 +77,7 @@ def main():
     save_hyperparameters(output_dir, {
         "degree": POLY_DEGREE,
         "n_pca_components": N_PCA_COMPONENTS,
-        "ridge_alpha": best_alpha,
+        "regressor": "ols",
     })
 
     save_model_results(

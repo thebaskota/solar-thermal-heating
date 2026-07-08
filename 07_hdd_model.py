@@ -98,7 +98,7 @@ def fit_hdd_variant(
 
     n_params = hdd_n_params(variant_key)
     train_metrics = calculate_metrics(y_train, y_train_pred, n_params)
-    test_metrics = calculate_metrics(y_test, y_test_pred, n_params)
+    test_metrics = calculate_metrics(y_test, y_test_pred)
     print_model_performance(train_metrics, test_metrics)
 
     save_hyperparameters(variant_dir, {
@@ -172,8 +172,7 @@ def fit_hdd_variant(
         "Test_R²": test_metrics["R²"],
         "Test_RMSE": test_metrics["RMSE"],
         "Test_MAE": test_metrics["MAE"],
-        "Train_BIC": train_metrics.get("BIC"),
-        "Test_BIC": test_metrics.get("BIC"),
+        "Dev_BIC": train_metrics.get("BIC"),
     }
 
 

@@ -224,9 +224,15 @@ def plot_temperature_hdd_narrative(df, train_df, base_temp, output_dir):
         model = LinearRegression().fit(poly.fit_transform(X_train), y_train)
         curves[degree] = model.predict(poly.transform(temp_line.reshape(-1, 1)))
 
-    hdd_train = make_hdd(train_df[TEMP_COLUMN].values, base_temp).reshape(-1, 1)
-    hdd_model = LinearRegression().fit(hdd_train, y_train)
+    hdd_features_train = build_hdd_features(train_df, base_temp)
+    hdd_solar_model = LinearRegression().fit(hdd_features_train.values, y_train)
+    solar_mean = float(train_df[SOLAR_COLUMN].mean())
+    hdd_coef = float(hdd_solar_model.coef_[0])
+    solar_coef = float(hdd_solar_model.coef_[1])
+    intercept = float(hdd_solar_model.intercept_)
     hdd_line = np.linspace(0, hdd.max(), 300).reshape(-1, 1)
+    line_features = np.column_stack([hdd_line.ravel(), np.full(hdd_line.shape[0], solar_mean)])
+    hdd_line_pred = hdd_solar_model.predict(line_features)
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
 
@@ -240,13 +246,15 @@ def plot_temperature_hdd_narrative(df, train_df, base_temp, output_dir):
            title="A) Gas vs temperature — plateau + slope")
     ax.legend(fontsize=7)
 
+    train_hdd = make_hdd(train_df[TEMP_COLUMN].values, base_temp)
     ax = axes[1]
-    ax.scatter(hdd, gas, alpha=0.4, s=18, c=hdd, cmap="coolwarm", edgecolors="none")
-    ax.plot(hdd_line, hdd_model.predict(hdd_line), "k-", lw=2.5,
-            label=f"Gas = {hdd_model.intercept_:.0f} + {hdd_model.coef_[0]:.1f}·HDD")
+    ax.scatter(train_hdd, y_train, alpha=0.4, s=18, c=train_hdd, cmap="coolwarm", edgecolors="none")
+    ax.plot(hdd_line.ravel(), hdd_line_pred, "k-", lw=2.5,
+            label=(f"Gas = {intercept:.0f} + {hdd_coef:.1f}·HDD "
+                   f"{solar_coef:+.2f}·Solar\n(line: solar at dev. mean)"))
     ax.set(xlabel=f"HDD (base {base_temp}°C)", ylabel="Gas [kWh/day]",
-           title="B) Gas vs HDD — linear fit")
-    ax.legend(fontsize=8)
+           title="B) Gas vs HDD — HDD + solar yield (development fit)")
+    ax.legend(fontsize=7)
 
     lin_resid = gas - LinearRegression().fit(X_train, y_train).predict(temp.reshape(-1, 1))
     ax = axes[2]
@@ -256,8 +264,11 @@ def plot_temperature_hdd_narrative(df, train_df, base_temp, output_dir):
     ax.set(xlabel="Outdoor Temperature [°C]", ylabel="Residual (actual − linear temp fit)",
            title="C) Linear temp model misses summer plateau")
 
-    fig.suptitle("Piecewise heating demand — HDD linearises the relationship", fontsize=12, y=1.02)
-    save_fig(output_dir / "temperature_hdd_narrative.png")
+    fig.suptitle("Piecewise heating demand — HDD linearises the relationship", fontsize=12)
+    path = output_dir / "temperature_hdd_narrative.png"
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
+    fig.savefig(path, dpi=150, bbox_inches="tight", pad_inches=0.2)
+    plt.close(fig)
 
 
 def main():

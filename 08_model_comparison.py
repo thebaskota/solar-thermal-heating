@@ -50,10 +50,10 @@ def load_cv_summary(model_dir):
 
 def plot_holdout_r2(comparison_df, output_path):
     plt.figure(figsize=(10, 5))
-    sns.barplot(data=comparison_df, x="Model", y="Test_R²", color="steelblue")
+    sns.barplot(data=comparison_df, x="Model", y="Holdout_R²", color="steelblue")
     plt.title("Final Holdout R² Comparison (70 weeks)")
     plt.xlabel("Model")
-    plt.ylabel("Test R²")
+    plt.ylabel("Holdout R²")
     plt.xticks(rotation=20, ha="right")
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
@@ -94,10 +94,10 @@ def main():
         rows.append(entry)
 
     comparison_df = pd.DataFrame(rows)
-    comparison_df["R2_gap"] = comparison_df["Train_R²"] - comparison_df["Test_R²"]
+    comparison_df["R2_gap"] = comparison_df["Train_R²"] - comparison_df["Holdout_R²"]
 
-    print("--- Model comparison (held-out test set) ---")
-    display_cols = ["Model", "Train_R²", "Test_R²", "Test_RMSE", "Test_MAE", "Dev_BIC", "CV_R²_Mean", "CV_R²_Std"]
+    print("--- Model comparison (holdout set) ---")
+    display_cols = ["Model", "Train_R²", "Holdout_R²", "Holdout_RMSE", "Holdout_MAE", "Dev_BIC", "CV_R²_Mean", "CV_R²_Std"]
     print(comparison_df[display_cols].round(4).to_string(index=False))
 
     comparison_df.to_csv(output_dir / "model_comparison.csv", index=False)
@@ -107,8 +107,8 @@ def main():
     if holdout is not None:
         holdout.to_csv(output_dir / "final_holdout_predictions.csv", index=False)
 
-    best_row = comparison_df.sort_values(["Test_R²", "Test_RMSE"], ascending=[False, True]).iloc[0]
-    print(f"\nHighest test R²: {best_row['Model']} (R²={best_row['Test_R²']:.4f})")
+    best_row = comparison_df.sort_values(["Holdout_R²", "Holdout_RMSE"], ascending=[False, True]).iloc[0]
+    print(f"\nHighest holdout R²: {best_row['Model']} (R²={best_row['Holdout_R²']:.4f})")
     print("Note: Dev_BIC is computed on the development sample only (classical in-sample BIC).")
     print("Note: Dev_BIC is not defined for Random Forest.")
     print(f"\nSaved outputs to: {output_dir}")

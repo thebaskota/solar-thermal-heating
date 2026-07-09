@@ -307,7 +307,7 @@ def save_hyperparameters(output_dir, params_dict):
 
 def print_model_performance(train_metrics, test_metrics):
     metric_names = ["R²", "MSE", "RMSE", "MAE"]
-    print(f"{'Metric':<10} {'Training':>12} {'Testing':>12}")
+    print(f"{'Metric':<10} {'Training':>12} {'Holdout':>12}")
     print("-" * 36)
     for name in metric_names:
         if name not in train_metrics:
@@ -331,10 +331,10 @@ def load_model_metrics(model_name, eval_path):
         "Train_MSE": train.get("MSE", np.nan),
         "Train_RMSE": train["RMSE"],
         "Train_MAE": train["MAE"],
-        "Test_R²": test["R²"],
-        "Test_MSE": test.get("MSE", np.nan),
-        "Test_RMSE": test["RMSE"],
-        "Test_MAE": test["MAE"],
+        "Holdout_R²": test["R²"],
+        "Holdout_MSE": test.get("MSE", np.nan),
+        "Holdout_RMSE": test["RMSE"],
+        "Holdout_MAE": test["MAE"],
     }
     if "BIC" in train.index:
         row["Dev_BIC"] = train["BIC"]
@@ -391,7 +391,7 @@ def save_model_results(
     plt.plot([min_val, max_val], [min_val, max_val], "r--", linewidth=1.5, label="y = x")
     plt.xlabel("Actual Gas Consumption [kWh/day]")
     plt.ylabel("Predicted Gas Consumption [kWh/day]")
-    plt.title(f"Actual vs Predicted — {model_name} (Testing Set)")
+    plt.title(f"Actual vs Predicted — {model_name} (Holdout Set)")
     plt.legend()
     plt.tight_layout()
     plt.savefig(output_dir / "actual_vs_predicted.png", dpi=150)
@@ -414,7 +414,7 @@ def save_model_results(
     plt.axhline(y=0, color="red", linestyle="--", linewidth=1.5)
     plt.xlabel("Predicted Gas Consumption [kWh/day]")
     plt.ylabel("Residual (Actual − Predicted) [kWh/day]")
-    plt.title(f"Residual Plot — {model_name} (Testing Set)")
+    plt.title(f"Residual Plot — {model_name} (Holdout Set)")
     plt.tight_layout()
     plt.savefig(output_dir / "residual_plot.png", dpi=150)
     plt.close()
@@ -423,7 +423,7 @@ def save_model_results(
     plt.hist(residuals, bins=20, edgecolor="black", alpha=0.7)
     plt.xlabel("Residual (Actual − Predicted) [kWh/day]")
     plt.ylabel("Frequency")
-    plt.title(f"Histogram of Residuals — {model_name} (Testing Set)")
+    plt.title(f"Histogram of Residuals — {model_name} (Holdout Set)")
     plt.tight_layout()
     plt.savefig(output_dir / "residual_histogram.png", dpi=150)
     plt.close()
@@ -463,7 +463,7 @@ def save_residual_diagnostics(output_dir, model_name, y_test_pred, y_test, tempe
     plt.axhline(0, color="red", linestyle="--", linewidth=1.5)
     plt.xlabel("Outdoor Temperature [°C]")
     plt.ylabel("Residual (Actual − Predicted) [kWh/day]")
-    plt.title(f"Residuals vs Temperature — {model_name} (Testing Set)")
+    plt.title(f"Residuals vs Temperature — {model_name} (Holdout Set)")
     plt.tight_layout()
     plt.savefig(output_dir / "residual_vs_temperature.png", dpi=150)
     plt.close()

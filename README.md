@@ -4,6 +4,8 @@ Predict weekly gas consumption from solar-thermal heating data using PCA-based r
 
 ## Setup
 
+Requires **Python 3.9+**.
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate

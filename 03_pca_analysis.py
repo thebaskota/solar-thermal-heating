@@ -81,7 +81,7 @@ def main():
 
     plt.figure(figsize=(8, 5))
     plt.plot(pcs, ev, "o-", color="steelblue")
-    plt.title("Scree Plot (Training Set)")
+    plt.title("Scree Plot (Development Set)")
     plt.xlabel("Principal Component")
     plt.ylabel("Explained Variance Ratio")
     plt.xticks(pcs)
@@ -89,7 +89,7 @@ def main():
 
     plt.figure(figsize=(8, 5))
     plt.plot(pcs, cv, "o-", color="darkorange")
-    plt.title("Cumulative Explained Variance (Training Set)")
+    plt.title("Cumulative Explained Variance (Development Set)")
     plt.xlabel("Number of Principal Components")
     plt.ylabel("Cumulative Explained Variance Ratio")
     plt.ylim(0, 1.05)
@@ -98,7 +98,7 @@ def main():
     plt.figure(figsize=(10, 6))
     sns.heatmap(loadings, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
                 linewidths=0.5, yticklabels=SHORT_LABELS, cbar_kws={"label": "Loading"})
-    plt.title("PCA Loadings Heatmap (Training Set)")
+    plt.title("PCA Loadings Heatmap (Development Set)")
     save_fig(output_dir / "pca_loadings_heatmap.png")
 
     plt.figure(figsize=(8, 6))
@@ -107,7 +107,7 @@ def main():
     plt.axvline(0, color="gray", linestyle="--", linewidth=0.8)
     plt.xlabel("PC1")
     plt.ylabel("PC2")
-    plt.title("PC1 vs PC2 (Training Set)")
+    plt.title("PC1 vs PC2 (Development Set)")
     save_fig(output_dir / "pca_scatter_plot.png")
 
     print(f"\nSaved outputs to: {output_dir}")

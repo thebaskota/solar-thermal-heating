@@ -169,9 +169,9 @@ def fit_hdd_variant(
         "Train_R²": train_metrics["R²"],
         "Train_RMSE": train_metrics["RMSE"],
         "Train_MAE": train_metrics["MAE"],
-        "Test_R²": test_metrics["R²"],
-        "Test_RMSE": test_metrics["RMSE"],
-        "Test_MAE": test_metrics["MAE"],
+        "Holdout_R²": test_metrics["R²"],
+        "Holdout_RMSE": test_metrics["RMSE"],
+        "Holdout_MAE": test_metrics["MAE"],
         "Dev_BIC": train_metrics.get("BIC"),
     }
 
